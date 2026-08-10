@@ -1,52 +1,80 @@
-# MPAS Compilation
+# MPAS — Ambiente de Compilação
 
-Ambiente Docker para compilação e execução do [MPAS](https://mpas-dev.github.io/) com suas principais dependências, incluindo bibliotecas de I/O, MPI, WPS e ferramentas auxiliares.
+Este projeto contém a configuração do ambiente necessário para **compilação e execução do MPAS-Atmosphere**, incluindo suas dependências e ferramentas de pré-processamento.
 
-## Objetivo
+O ambiente pode ser configurado de duas formas:
 
-Este projeto documenta e automatiza a construção de um ambiente para compilação do MPAS utilizando Docker, permitindo reproduzir o ambiente de compilação de forma consistente.
-
-## Principais componentes
-
-* MPAS v8.4.1
-* WPS v4.5
-* MPICH
-* NetCDF-C
-* NetCDF-Fortran
-* PnetCDF
-* PIO
-* HDF5
-* zlib
-* METIS
+* **Docker**, utilizando o `Dockerfile`;
+* **Instalação manual**, compilando as dependências diretamente no sistema.
 
 ## Estrutura
 
 ```text
+.
 ├── Dockerfile
 ├── README.md
-├── COMPILATION.md
-├── baixar_ERA5.py
+├── dados-era5/
 └── docs/
-    ├── io-libraries/
-    ├── mpi-libraries/
-    └── mpas-core/
+    ├── dependencias/
+    ├── particionamento/
+    ├── wps/
+    └── mpas/
 ```
 
-## Início rápido
+## Componentes
+
+O ambiente é composto principalmente por:
+
+* **Bibliotecas de I/O:** zlib, HDF5, NetCDF-C, NetCDF-Fortran, PnetCDF e PIO;
+* **Particionamento:** GKlib e METIS;
+* **Pré-processamento:** WPS, `ungrib` e Jasper;
+* **Modelo:** MPAS-Atmosphere.
+
+## Docker
+
+Para construir a imagem:
 
 ```bash
-docker build -t mpas-compilation .
-docker run -it mpas-compilation
+docker build -t mpas .
 ```
 
-Para conhecer o processo completo de compilação, consulte:
+Para iniciar o container:
 
-* [COMPILATION.md](COMPILATION.md)
-* [Documentação das bibliotecas](docs/)
-* [Download dos dados ERA5](baixar_era5.py)
+```bash
+docker run --rm -it mpas bash
+```
 
-## Dados ERA5
+A partir do container, as etapas de compilação e execução podem ser realizadas conforme a documentação.
 
-O arquivo `baixar_era5.py` utiliza a API do Copernicus Climate Data Store (CDS) para realizar o download dos dados ERA5 necessários ao processamento.
+## Compilação do MPAS
 
-Consulte a documentação do script antes de executar o download.
+Após preparar o ambiente e acessar o código-fonte do MPAS:
+
+```bash
+make -j$(nproc) gnu CORE=atmosphere USE_PIO2=true
+```
+
+## Documentação
+
+A documentação detalhada está organizada por componente:
+
+* [`docs/dependencias/`](docs/dependencias/) — bibliotecas de I/O;
+* [`docs/particionamento/`](docs/particionamento/) — GKlib e METIS;
+* [`docs/wps/`](docs/wps/) — WPS, `ungrib` e Jasper;
+* [`docs/mpas/`](docs/mpas/) — instalação, compilação e execução do MPAS.
+
+## Versões principais
+
+| Componente     | Versão  |
+| -------------- | ------- |
+| Ubuntu         | 24.04   |
+| MPAS           | v8.4.1  |
+| WPS            | v4.5    |
+| zlib           | 1.3.2   |
+| HDF5           | 1.14.6  |
+| NetCDF-C       | 4.9.3   |
+| NetCDF-Fortran | 4.6.2   |
+| PnetCDF        | 1.12.3  |
+| PIO            | 2.6.8   |
+| METIS          | 5.2.1   |
+| Jasper         | 1.900.1 |

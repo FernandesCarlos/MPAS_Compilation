@@ -208,5 +208,3 @@ WORKDIR /dados/era5
 
 
 COPY dados-era5 /dados/era5
-
-CMD ["/bin/bash"]

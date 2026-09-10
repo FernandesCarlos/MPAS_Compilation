@@ -3,8 +3,7 @@ FROM ubuntu:24.04 AS mpas-dev
 # ==============================================================================
 # VERSÕES
 # ==============================================================================
-# As versões ficam centralizadas aqui para facilitar a atualização das
-# bibliotecas sem precisar procurar números de versão pelo Dockerfile inteiro.
+# As versões ficam centralizadas para facilitar atualização e auditoria.
 
 ARG ZLIB_VERSION=1.3.2
 ARG HDF5_VERSION=1.14.6
@@ -17,15 +16,13 @@ ARG WPS_VERSION=v4.5
 ARG MPAS_VERSION=v8.4.1
 ARG CDSAPI_VERSION=0.7.7
 
-# Evita perguntas interativas do apt durante a construção da imagem.
 ENV DEBIAN_FRONTEND=noninteractive
-
 
 # ==============================================================================
 # PACOTES DO SISTEMA
 # ==============================================================================
-# Aqui são instalados os compiladores e ferramentas usados para construir
-# todas as bibliotecas do MPAS. MPICH fornece mpicc, mpicxx e mpif90.
+# MPICH fornece mpicc, mpicxx e mpif90. python3-netcdf4 é usado pelos
+# validadores de saída do caso reproduzível.
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -47,21 +44,16 @@ RUN apt-get update && \
         python3 \
         python3-pip \
         python3-venv \
+        python3-netcdf4 \
         csh \
         libpng-dev \
         libxml2-dev \
         nano && \
     rm -rf /var/lib/apt/lists/*
 
-
 # ==============================================================================
 # DIRETÓRIOS
 # ==============================================================================
-# /build é usado apenas durante a compilação das bibliotecas.
-# /dependencias recebe as bibliotecas instaladas.
-# /mpas contém o código e os arquivos de execução do MPAS.
-# /dados recebe dados externos montados por volume.
-# /workspace contém scripts auxiliares do projeto.
 
 RUN mkdir -p \
         /build \
@@ -69,13 +61,15 @@ RUN mkdir -p \
         /mpas \
         /mpas/run \
         /dados/era5 \
-        /workspace/scripts
-
+        /workspace/scripts \
+        /workspace/cases \
+        /workspace/tests \
+        /workspace/data \
+        /workspace/work
 
 # ==============================================================================
 # ZLIB
 # ==============================================================================
-# A zlib fornece compressão usada pelo HDF5 e pelo NetCDF.
 
 RUN cd /build && \
     git clone \
@@ -84,18 +78,14 @@ RUN cd /build && \
         https://github.com/madler/zlib.git \
         zlib-${ZLIB_VERSION} && \
     cd zlib-${ZLIB_VERSION} && \
-    ./configure \
-        --prefix=/dependencias/zlib && \
+    ./configure --prefix=/dependencias/zlib && \
     make -j"$(nproc)" && \
     make install && \
     rm -rf /build/zlib-${ZLIB_VERSION}
 
-
 # ==============================================================================
-# HDF5
+# HDF5 PARALELO
 # ==============================================================================
-# O HDF5 é compilado com MPI porque o NetCDF-4 usado pelo MPAS precisa de
-# suporte a acesso paralelo.
 
 RUN cd /build && \
     wget \
@@ -118,12 +108,9 @@ RUN cd /build && \
         /build/hdf5-${HDF5_VERSION} \
         /build/hdf5-${HDF5_VERSION}.tar.gz
 
-
 # ==============================================================================
 # NETCDF-C
 # ==============================================================================
-# O NetCDF-C é compilado usando o HDF5 e a zlib instalados anteriormente.
-# O suporte DAP é desativado porque não é necessário para a execução do MPAS.
 
 RUN cd /build && \
     wget \
@@ -145,12 +132,9 @@ RUN cd /build && \
         /build/netcdf-c-${NETCDF_C_VERSION} \
         /build/netcdf-c-${NETCDF_C_VERSION}.tar.gz
 
-
 # ==============================================================================
 # NETCDF-FORTRAN
 # ==============================================================================
-# O MPAS é escrito principalmente em Fortran, por isso além do NetCDF-C também
-# é necessária a interface Fortran do NetCDF.
 
 RUN cd /build && \
     wget \
@@ -162,20 +146,16 @@ RUN cd /build && \
     FC=mpif90 \
     CPPFLAGS="-I/dependencias/netcdf/include" \
     LDFLAGS="-L/dependencias/netcdf/lib" \
-    ./configure \
-        --prefix=/dependencias/netcdf && \
+    ./configure --prefix=/dependencias/netcdf && \
     make -j"$(nproc)" && \
     make install && \
     rm -rf \
         /build/netcdf-fortran-${NETCDF_FORTRAN_VERSION} \
         /build/netcdf-fortran-${NETCDF_FORTRAN_VERSION}.tar.gz
 
-
 # ==============================================================================
 # PARALLEL-NETCDF
 # ==============================================================================
-# O Parallel-NetCDF permite operações paralelas em arquivos NetCDF clássicos
-# e é uma das bibliotecas de I/O utilizadas pelo MPAS.
 
 RUN cd /build && \
     wget \
@@ -195,12 +175,9 @@ RUN cd /build && \
         /build/pnetcdf-${PNETCDF_VERSION} \
         /build/pnetcdf-${PNETCDF_VERSION}.tar.gz
 
-
 # ==============================================================================
 # PIO
 # ==============================================================================
-# O ParallelIO organiza o acesso paralelo aos arquivos de entrada e saída.
-# Ele é compilado apontando explicitamente para NetCDF e Parallel-NetCDF.
 
 RUN cd /build && \
     wget \
@@ -228,22 +205,14 @@ RUN cd /build && \
         /build/ParallelIO-pio$(echo ${PIO_VERSION} | tr . _) \
         /build/pio-${PIO_VERSION}.tar.gz
 
-
 # ==============================================================================
 # GKLIB E METIS
 # ==============================================================================
-# GKlib é uma dependência do METIS.
-# O METIS fornece o gpmetis, usado para particionar o grafo da malha do MPAS.
 
 RUN cd /build && \
-    git clone \
-        --depth 1 \
-        https://github.com/KarypisLab/GKlib.git && \
+    git clone --depth 1 https://github.com/KarypisLab/GKlib.git && \
     cd GKlib && \
-    make config \
-        prefix=/dependencias/metis \
-        cc=gcc \
-        shared=1 && \
+    make config prefix=/dependencias/metis cc=gcc shared=1 && \
     make -j"$(nproc)" && \
     make install && \
     cd /build && \
@@ -259,48 +228,33 @@ RUN cd /build && \
         shared=1 && \
     make -j"$(nproc)" && \
     make install && \
-    rm -rf \
-        /build/GKlib \
-        /build/METIS
-
+    rm -rf /build/GKlib /build/METIS
 
 # ==============================================================================
 # AMBIENTE DAS BIBLIOTECAS
 # ==============================================================================
-# Estas variáveis informam ao sistema de build do MPAS onde estão NetCDF,
-# Parallel-NetCDF e PIO.
-#
-# PATH permite executar programas como nc-config, nf-config e gpmetis.
-# LD_LIBRARY_PATH permite que o Linux encontre as bibliotecas compartilhadas
-# durante a execução dos programas.
 
 ENV NETCDF=/dependencias/netcdf
 ENV PNETCDF=/dependencias/pnetcdf
 ENV PIO=/dependencias/pio
-
 ENV PATH="/opt/cdsapi/bin:/dependencias/netcdf/bin:/dependencias/pnetcdf/bin:/dependencias/pio/bin:/dependencias/metis/bin:${PATH}"
-
 ENV LD_LIBRARY_PATH="/dependencias/zlib/lib:/dependencias/hdf5/lib:/dependencias/netcdf/lib:/dependencias/pnetcdf/lib:/dependencias/pio/lib:/dependencias/metis/lib:/usr/lib/x86_64-linux-gnu"
 
-
 # ==============================================================================
-# CDSAPI
+# CDSAPI E VALIDAÇÃO PYTHON
 # ==============================================================================
-# O cliente do Climate Data Store fica em um ambiente virtual separado.
-# O arquivo .cdsapirc não é copiado para a imagem; ele deve ser montado no
-# container quando for necessário baixar dados ERA5.
+# O venv vê os pacotes do sistema para reutilizar python3-netcdf4 sem manter
+# uma segunda cópia da stack NetCDF. A credencial ~/.cdsapirc nunca é copiada.
 
-RUN python3 -m venv /opt/cdsapi && \
+RUN python3 -m venv --system-site-packages /opt/cdsapi && \
     /opt/cdsapi/bin/pip install --no-cache-dir --upgrade pip && \
     /opt/cdsapi/bin/pip install --no-cache-dir cdsapi==${CDSAPI_VERSION}
-
 
 # ==============================================================================
 # WPS
 # ==============================================================================
-# O código do WPS é baixado, mas não é compilado durante o docker build.
-# Dentro do container será usado somente o ungrib, responsável por transformar
-# os arquivos GRIB do ERA5 no formato intermediário usado pelo MPAS.
+# O source é mantido para fins didáticos. scripts/prepare/build_tools.sh usa
+# ./configure --nowrf --build-grib2-libs e compila apenas ungrib quando preciso.
 
 RUN git clone \
         --depth 1 \
@@ -308,13 +262,11 @@ RUN git clone \
         https://github.com/wrf-model/WPS.git \
         /build/WPS
 
-
 # ==============================================================================
 # MPAS
 # ==============================================================================
-# O código-fonte do MPAS fica disponível no container para que os cores sejam
-# compilados manualmente. Dessa forma é possível estudar e alterar as opções de
-# compilação sem reconstruir toda a cadeia de dependências.
+# Os cores continuam compiláveis manualmente; a automação apenas oferece um
+# caminho opcional e reproduzível para init_atmosphere e atmosphere.
 
 RUN git clone \
         --depth 1 \
@@ -322,24 +274,19 @@ RUN git clone \
         https://github.com/MPAS-Dev/MPAS-Model.git \
         /mpas/MPAS-Model
 
-
 # ==============================================================================
-# SCRIPTS DO PROJETO
+# ARTEFATOS VERSIONADOS DO PROJETO
 # ==============================================================================
-# Os scripts locais ficam separados do código-fonte do MPAS e do WPS.
 
 COPY scripts/ /workspace/scripts/
+COPY cases/ /workspace/cases/
+COPY tests/ /workspace/tests/
 
-RUN chmod -R a+rX /workspace/scripts
+RUN find /workspace/scripts /workspace/tests \
+        -type f -name '*.sh' -exec chmod 0755 {} + && \
+    chmod -R a+rX /workspace/cases
 
-
-# ==============================================================================
-# DIRETÓRIO INICIAL
-# ==============================================================================
-# Ao abrir o container, o terminal começa em /mpas.
-# Dados ERA5, malhas e saídas devem ser montados externamente em /dados e
-# /mpas/run, em vez de serem adicionados permanentemente à imagem.
-
+# Mantém o diretório inicial histórico; para o pipeline execute `cd /workspace`.
 WORKDIR /mpas
 
 CMD ["/bin/bash"]

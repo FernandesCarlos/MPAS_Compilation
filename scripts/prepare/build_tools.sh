@@ -11,6 +11,13 @@ export PIO="${PIO:-/dependencias/pio}"
 export PATH="${NETCDF}/bin:${PNETCDF}/bin:${PIO}/bin:/dependencias/metis/bin:${PATH}"
 export LD_LIBRARY_PATH="/dependencias/zlib/lib:/dependencias/hdf5/lib:${NETCDF}/lib:${PNETCDF}/lib:${PIO}/lib:/dependencias/metis/lib:${LD_LIBRARY_PATH:-}"
 
+if [[ "${1:-}" == "--dry-run" ]]; then
+  echo "[DRY-RUN] cd $WPS_ROOT && ./configure --nowrf --build-grib2-libs && ./compile ungrib"
+  echo "[DRY-RUN] cd $MPAS_ROOT && make -j${BUILD_JOBS} gnu CORE=init_atmosphere USE_PIO2=true"
+  echo "[DRY-RUN] cd $MPAS_ROOT && make -j${BUILD_JOBS} gnu CORE=atmosphere USE_PIO2=true"
+  exit 0
+fi
+
 check_linkage() {
   local exe="$1"
   require_file "$exe"
@@ -40,7 +47,7 @@ build_wps() {
     fi
     [[ -n "$option" ]] || die "Não foi possível detectar a opção GNU serial do WPS. Defina WPS_CONFIG_OPTION."
     log_info "Configurando WPS com opção $option"
-    printf '%s\n' "$option" | ./configure --nowrf
+    printf '%s\n' "$option" | ./configure --nowrf --build-grib2-libs
   fi
   run_logged "$WORK_ROOT/logs/build-wps.log" ./compile ungrib
   check_linkage "$WPS_ROOT/ungrib.exe"

@@ -20,11 +20,24 @@ CONFIG_FILES=(
   stream_list.atmosphere.diagnostics stream_list.atmosphere.diag_ugwp
   stream_list.atmosphere.surface
 )
+EXPECTED_HISTORY=(
+  history.2014-09-10_00.00.00.nc
+  history.2014-09-10_01.00.00.nc
+)
+EXPECTED_DIAGNOSTICS=(
+  diag.2014-09-10_00.00.00.nc
+  diag.2014-09-10_01.00.00.nc
+)
 
 if [[ "${1:-}" == "--dry-run" ]]; then
   echo "[DRY-RUN] baseline: start=$START_DATE duration=$RUN_DURATION dt=${DT}s ranks=$MPI_RANKS"
   echo "[DRY-RUN] mpiexec -n $MPI_RANKS $MPAS_ROOT/atmosphere_model"
-  echo "[DRY-RUN] output $OUT_DIR/history.*.nc + $OUT_DIR/diag.*.nc"
+  for f in "${EXPECTED_HISTORY[@]}"; do
+    echo "[DRY-RUN] expected history: $OUT_DIR/$f"
+  done
+  for f in "${EXPECTED_DIAGNOSTICS[@]}"; do
+    echo "[DRY-RUN] expected diagnostics: $OUT_DIR/$f"
+  done
   exit 0
 fi
 
@@ -34,10 +47,15 @@ require_file "$PART_FILE"
 for f in "${CONFIG_FILES[@]}"; do require_file "$CASE_ROOT/atmosphere/$f"; done
 for table in "${LOOKUP_TABLES[@]}"; do require_file "$LOOKUP_SOURCE/$table"; done
 
-if compgen -G "$OUT_DIR/history.*.nc" >/dev/null && [[ "${FORCE:-0}" != "1" ]]; then
-  log_info "Execução atmosphere já possui history em $OUT_DIR; pulando."
+all_outputs_present=1
+for f in "${EXPECTED_HISTORY[@]}" "${EXPECTED_DIAGNOSTICS[@]}"; do
+  [[ -s "$OUT_DIR/$f" ]] || all_outputs_present=0
+done
+if [[ "$all_outputs_present" == "1" && "${FORCE:-0}" != "1" ]]; then
+  log_info "Execução atmosphere da baseline já está completa em $OUT_DIR; pulando."
   exit 0
 fi
+
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 ln -s "$INIT_FILE" "$OUT_DIR/x1.10242.init.nc"
@@ -50,14 +68,16 @@ for table in "${LOOKUP_TABLES[@]}"; do ln -s "$LOOKUP_SOURCE/$table" "$OUT_DIR/$
   run_logged "$WORK_ROOT/logs/atmosphere.log" mpiexec -n "$MPI_RANKS" "$MPAS_ROOT/atmosphere_model"
 )
 
-mapfile -t histories < <(find "$OUT_DIR" -maxdepth 1 -type f -name 'history.*.nc' -print | sort)
-mapfile -t diagnostics < <(find "$OUT_DIR" -maxdepth 1 -type f -name 'diag.*.nc' -print | sort)
-[[ ${#histories[@]} -gt 0 ]] || die "atmosphere_model não gerou arquivos history"
-[[ ${#diagnostics[@]} -gt 0 ]] || die "atmosphere_model não gerou arquivos diagnostics"
+for f in "${EXPECTED_HISTORY[@]}"; do
+  [[ -s "$OUT_DIR/$f" ]] || die "atmosphere_model não gerou o history esperado: $f"
+done
+for f in "${EXPECTED_DIAGNOSTICS[@]}"; do
+  [[ -s "$OUT_DIR/$f" ]] || die "atmosphere_model não gerou o diagnostics esperado: $f"
+done
 
 python3 "$REPO_ROOT/scripts/validate/validate_outputs.py" \
-  "${histories[@]}" --require-var t2m --require-time
+  "${EXPECTED_HISTORY[@]/#/$OUT_DIR/}" --require-var t2m --require-time
 python3 "$REPO_ROOT/scripts/validate/validate_outputs.py" \
-  "${diagnostics[@]}" --require-time
+  "${EXPECTED_DIAGNOSTICS[@]/#/$OUT_DIR/}" --require-time
 
 log_info "Execução atmosphere concluída: $OUT_DIR"

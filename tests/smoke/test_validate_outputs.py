@@ -1,3 +1,4 @@
+import importlib.util
 import pathlib
 import subprocess
 import sys
@@ -20,7 +21,7 @@ class ValidateOutputsTest(unittest.TestCase):
         self.assertIn("FAIL", proc.stdout + proc.stderr)
         self.assertIn("file.nc", proc.stdout + proc.stderr)
 
-    @unittest.skipUnless(__import__("importlib").util.find_spec("netCDF4"), "netCDF4 not installed")
+    @unittest.skipUnless(importlib.util.find_spec("netCDF4"), "netCDF4 not installed")
     def test_finite_netcdf_passes_and_nan_fails(self):
         import netCDF4
         import numpy as np

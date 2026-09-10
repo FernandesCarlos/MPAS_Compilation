@@ -1,2 +1,27 @@
-dados-era5/
+# Credenciais
 .cdsapirc
+
+# Dados e workdirs locais
+data/
+work/
+dados-era5/
+
+# Entradas e saídas científicas grandes
+*.grib
+*.grb
+FILE:*
+PFILE:*
+*.nc
+history.*
+diag.*
+restart.*
+lbc.*
+
+# Logs e artefatos locais
+*.log
+*.out
+*.err
+
+# Malhas e geografia baixadas localmente
+*.graph.info.part.*
+WPS_GEOG/

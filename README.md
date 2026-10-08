@@ -48,6 +48,35 @@ A partir do container, as etapas de compilação e execução podem ser realizad
 
 ## Compilação do MPAS
 
+### Scripts de compilação e execução
+
+No computador (Linux, WSL ou Codespaces):
+
+```bash
+bash scripts/docker_mpas.sh build
+bash scripts/docker_mpas.sh shell
+```
+
+Dentro do contêiner:
+
+```bash
+bash /workspace/scripts/mpas.sh compile
+```
+
+Com a malha, os dados e as configurações preparados:
+
+```bash
+NP=4 bash /workspace/scripts/mpas.sh partition /mpas/run/x1.10242.graph.info
+NP=4 bash /workspace/scripts/mpas.sh check atmosphere
+NP=4 bash /workspace/scripts/mpas.sh run
+```
+
+Os comandos `static` e `init` executam as etapas de inicialização com seus
+namelists e streams previamente ajustados. Veja o
+[guia completo de execução](docs/mpas/EXECUCAO.md) para os pré-requisitos e a ordem
+das etapas. Os scripts não baixam dados, não compilam o WPS e não fornecem um caso
+científico pronto. `run/` guarda as entradas e saídas fora da imagem Docker.
+
 Após preparar o ambiente e acessar o código-fonte do MPAS:
 
 ```bash
@@ -78,3 +107,4 @@ A documentação detalhada está organizada por componente:
 | PIO            | 2.6.8   |
 | METIS          | 5.2.1   |
 | Jasper         | 1.900.1 |
+

@@ -1,2 +1,6 @@
 dados-era5/
 .cdsapirc
+run/
+__pycache__/
+*.pyc
+

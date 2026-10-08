@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
+bash "$CASE_DIR/../mpas.sh" compile

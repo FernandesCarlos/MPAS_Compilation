@@ -95,10 +95,19 @@ class CaseStepsTest(unittest.TestCase):
         hour = era / '2025-01-01_00'
         hour.mkdir(parents=True)
         for kind in ('pressure', 'single'):
-            (hour / f'era5_{kind}_levels.grib').write_text('fixture')
+            (hour / f'era5_{kind}_levels.grib').write_bytes(b'GRIB' + (20).to_bytes(3, 'big') + b'\1' + b'\0' * 8 + b'7777')
         result = self.run_step('03_converter_era5.sh', WPS_DIR=str(wps), ERA5_DIR=str(era), WPS_VTABLE=str(vtable))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.directory / 'ERA5:2025-01-01_00').read_text(), 'intermediate')
+        # Uma segunda execução sem saída nova precisa falhar, mesmo com a anterior presente.
+        exe.write_text('#!/bin/bash\nexit 0\n')
+        result = self.run_step('03_converter_era5.sh', WPS_DIR=str(wps), ERA5_DIR=str(era), WPS_VTABLE=str(vtable))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('ungrib não gerou', result.stderr)
+        work = self.directory / 'wps_2025-01-01_00'
+        self.assertFalse((work / 'ERA5:2025-01-01_00').exists())
+        self.assertTrue(list(work.glob('ERA5:2025-01-01_00.bak.*')))
+
 
 
 if __name__ == '__main__':

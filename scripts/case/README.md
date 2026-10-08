@@ -22,6 +22,7 @@ e resultados de simulações anteriores.
 | `00_compilar.sh` | Compila os dois cores e copia executáveis, configurações e tabelas |
 | `01_baixar_malha.sh` | Baixa malha e static.nc preparados e particiona para NP |
 | `02_baixar_era5.sh` | Baixa dados globais de pressão, superfície e solo para START_TIME |
+| `02a_preparar_wps.sh` | Compila ungrib/utilitários e prepara a Vtable |
 | `03_converter_era5.sh` | Converte os GRIB com ungrib para o intermediário ERA5 |
 | `04_configurar_init.sh` | Ajusta namelist e streams da inicialização meteorológica |
 | `05_gerar_init.sh` | Executa init_atmosphere_model para gerar init.nc |
@@ -45,14 +46,23 @@ outro terminal do computador copie-a para o contêiner:
 docker cp "$HOME/.cdsapirc" mpas-container:/root/.cdsapirc
 ```
 
-O script 03 exige WPS/ungrib compilado; o Dockerfile atual não o compila. Defina
-WPS_DIR se sua instalação estiver em outro caminho, por exemplo /mpas/wps.
-Defina WPS_VTABLE como o caminho absoluto da tabela compatível com os GRIB.
-Para dados ERA5 em níveis de pressão GRIB1, confira a tabela
-`/build/WPS/ungrib/Variable_Tables/Vtable.ERA-interim.pl`; GRIB2 exige uma tabela
-com os códigos GRIB2 correspondentes. O script não escolhe uma tabela sem essa
-configuração. Confirme os códigos e os campos usando g1print/g2print e
-rd_intermediate do WPS.
+O Dockerfile baixa o código do WPS; o script 02a conclui sua compilação.
+Ele usa `./configure --nowrf --build-grib2-libs`, selecionando gfortran serial
+automaticamente, e compila ungrib, g1print, g2print e rd_intermediate.
+As cópias internas de zlib, libpng e JasPer são construídas pelo WPS; não é
+necessário instalar um Jasper separado nem compilar o WRF.
+Defina WPS_DIR se sua instalação estiver em outro caminho, por exemplo /mpas/wps.
+Executáveis existentes são reutilizados; FORCE_WPS_REBUILD=1 força a limpeza dos
+produtos de compilação do WPS e a reconstrução. configure.wps recebe backup.
+
+Por padrão, 02a copia `Vtable.ERA-interim.pl` para `/mpas/run/Vtable.ERA5`.
+A conversão usa essa cópia automaticamente em uma nova execução do script 03.
+Essa tabela é GRIB1. Os scripts verificam as edições de todas as mensagens nos
+GRIB: se houver GRIB2 e a tabela não tiver colunas GRIB2, param com instruções
+para definir WPS_VTABLE para outra tabela e executar 02a novamente.
+A existência de colunas GRIB2 não comprova os códigos de cada variável: confira
+os campos e níveis usando g1print/g2print e rd_intermediate do WPS.
+Logs da configuração e de cada compilação ficam em `/mpas/run/wps_build/`.
 
 ## Execução dentro do contêiner
 
@@ -60,6 +70,7 @@ rd_intermediate do WPS.
 bash /workspace/scripts/case/00_compilar.sh
 bash /workspace/scripts/case/01_baixar_malha.sh
 bash /workspace/scripts/case/02_baixar_era5.sh
+bash /workspace/scripts/case/02a_preparar_wps.sh
 bash /workspace/scripts/case/03_converter_era5.sh
 bash /workspace/scripts/case/04_configurar_init.sh
 bash /workspace/scripts/case/05_gerar_init.sh

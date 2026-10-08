@@ -54,8 +54,9 @@ geográficos extraídos dentro do contêiner (por exemplo, em uma subpasta do vo
 arquivos intermediários antes de executar a inicialização meteorológica.
 
 O Dockerfile atual baixa o WPS, mas não compila o ungrib nem instala Jasper.
-O script `prepare_wps_era5.sh` existente não conclui a conversão dos GRIB.
-Portanto, essa preparação continua sendo um pré-requisito manual.
+Para concluir essa preparação, use `scripts/case/02a_preparar_wps.sh` dentro do
+contêiner: ele compila o ungrib e as bibliotecas GRIB2 internas do WPS.
+O script antigo `prepare_wps_era5.sh` não conclui a conversão dos GRIB.
 
 Para uma simulação global, os campos meteorológicos precisam cobrir toda a malha;
 um recorte apenas de Goiás não é suficiente. Data e hora do ERA5, arquivos

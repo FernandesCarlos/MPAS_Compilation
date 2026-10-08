@@ -54,7 +54,8 @@ Para preparar o exemplo global de 240 km, agora há
 [um script para cada etapa](scripts/case/README.md), de `00_compilar.sh` a
 `07_executar.sh`. Edite `scripts/case/caso.env` para mudar os parâmetros comuns.
 Os scripts configuram namelists/streams com backup e usam campos estáticos já
-preparados. O WPS/ungrib precisa estar compilado e a Vtable precisa ser informada.
+preparados. `02a_preparar_wps.sh` compila o WPS/ungrib e prepara a Vtable GRIB1;
+GRIB2 exige informar uma tabela com os códigos correspondentes.
 
 No computador (Linux, WSL ou Codespaces):
 
@@ -81,8 +82,8 @@ Os comandos `static` e `init` executam as etapas de inicialização com seus
 namelists e streams previamente ajustados. Veja o
 [guia completo de execução](docs/mpas/EXECUCAO.md) para os pré-requisitos e a ordem
 das etapas. Os comandos de `mpas.sh` não baixam dados; os scripts em `scripts/case/`
-automatizam a aquisição e configuração do exemplo global. O WPS ainda precisa ser
-compilado separadamente. `run/` guarda as entradas e saídas fora da imagem Docker.
+automatizam a aquisição, configuração e compilação WPS do exemplo global.
+`run/` guarda as entradas e saídas fora da imagem Docker.
 
 Após preparar o ambiente e acessar o código-fonte do MPAS:
 

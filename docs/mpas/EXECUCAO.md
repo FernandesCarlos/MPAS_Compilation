@@ -1,5 +1,9 @@
 # Executar MPAS com os scripts
 
+Para o exemplo global de 240 km com aquisição de dados e configuração por etapa,
+use [scripts/case/README.md](../../scripts/case/README.md). Este documento descreve
+os comandos básicos de `mpas.sh` e a preparação manual de outros casos.
+
 Os scripts automatizam o ambiente Docker, a compilação dos dois cores, o
 particionamento e o lançamento MPI. Eles não baixam a malha nem dados geográficos,
 não compilam o WPS e não escolhem os parâmetros físicos da sua simulação.
